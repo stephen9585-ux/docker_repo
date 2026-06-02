@@ -1,0 +1,83 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────
+#  3-TIER ARCHITECTURE — Single EC2, Dockerised
+#  Tier 1: Nginx  (Frontend)  → port 80
+#  Tier 2: Node   (Backend)   → port 5000 (internal)
+#  Tier 3: MongoDB(Database)  → port 27017 (internal)
+# ─────────────────────────────────────────────
+
+services:
+
+  # ── TIER 3: DATABASE ──────────────────────
+  mongo:
+    image: mongo:6.0
+    container_name: tier3_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+      MONGO_INITDB_DATABASE: level1_db
+    volumes:
+      - mongo_data:/data/db
+      - ./mongo-init/init.js:/docker-entrypoint-initdb.d/init.js:ro
+    networks:
+      - app_net
+    # NOT exposed to host — only accessible inside Docker network
+    expose:
+      - "27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── TIER 2: BACKEND ───────────────────────
+  backend:
+    build: ./backend
+    container_name: tier2_backend
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      DB_HOST: mongo           # Docker service name = hostname
+      DB_PORT: 27017
+      DB_NAME: level1_db
+      DB_USER: appServer
+      DB_PASS: password123
+    networks:
+      - app_net
+    expose:
+      - "5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── TIER 1: FRONTEND ──────────────────────
+  frontend:
+    build: ./frontend
+    container_name: tier1_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"      # Exposed to EC2 host → public internet
+    networks:
+      - app_net
+    depends_on:
+      backend:
+        condition: service_healthy
+
+# ── SHARED NETWORK ────────────────────────
+networks:
+  app_net:
+    driver: bridge
+
+# ── VOLUMES ───────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
