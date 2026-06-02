@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Level-2 System Access</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green: #00ff88;
+      --green-dim: #00cc6a;
+      --green-glow: rgba(0,255,136,0.25);
+      --bg: #050a06;
+      --panel: #080f09;
+      --border: #0d2b14;
+      --text: #c8ffd8;
+      --muted: #3a6b45;
+      --red: #ff4455;
+      --amber: #ffcc00;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Scanlines overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* CRT vignette */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.75) 100%);
+      pointer-events: none;
+      z-index: 99;
+    }
+
+    /* Animated grid background */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridScroll 20s linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes gridScroll {
+      0% { background-position: 0 0; }
+      100% { background-position: 40px 40px; }
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 480px;
+      padding: 20px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      animation: fadeDown 0.6s ease both;
+    }
+
+    .header .system-tag {
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .header h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--green);
+      text-shadow: 0 0 20px var(--green-glow), 0 0 60px rgba(0,255,136,0.1);
+      letter-spacing: 2px;
+    }
+
+    .header .subtitle {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+      letter-spacing: 2px;
+    }
+
+    /* Blink cursor animation */
+    .blink {
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Panel */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--green);
+      padding: 32px;
+      position: relative;
+      box-shadow: 0 0 40px rgba(0,255,136,0.05), inset 0 0 40px rgba(0,0,0,0.3);
+      animation: fadeUp 0.6s ease 0.2s both;
+    }
+
+    .panel::before {
+      content: '[ SECURE AUTH TERMINAL v2.4.1 ]';
+      position: absolute;
+      top: -10px;
+      left: 20px;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--green);
+      background: var(--panel);
+      padding: 0 8px;
+    }
+
+    /* Corner accents */
+    .panel::after {
+      content: '';
+      position: absolute;
+      bottom: 0; right: 0;
+      width: 20px; height: 20px;
+      border-bottom: 2px solid var(--green);
+      border-right: 2px solid var(--green);
+    }
+
+    .corner-tl {
+      position: absolute;
+      top: 0; left: 0;
+      width: 20px; height: 20px;
+      border-top: 2px solid var(--green);
+      border-left: 2px solid var(--green);
+      margin-top: 24px;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
+      50% { opacity: 0.5; box-shadow: 0 0 2px var(--green); }
+    }
+
+    /* Form */
+    .field {
+      margin-bottom: 20px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .field-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .field-wrap .prefix {
+      position: absolute;
+      left: 12px;
+      color: var(--green);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    .field input {
+      width: 100%;
+      background: rgba(0,255,136,0.03);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--green-dim);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 14px;
+      padding: 12px 12px 12px 32px;
+      outline: none;
+      transition: all 0.2s;
+      caret-color: var(--green);
+    }
+
+    .field input::placeholder { color: var(--muted); }
+
+    .field input:focus {
+      border-color: var(--green);
+      background: rgba(0,255,136,0.06);
+      box-shadow: 0 0 0 1px var(--green-glow), inset 0 0 20px rgba(0,255,136,0.03);
+    }
+
+    /* Submit button */
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: transparent;
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+      margin-top: 8px;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      left: -100%;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0,255,136,0.15), transparent);
+      transition: left 0.4s;
+    }
+
+    .btn:hover::before { left: 100%; }
+
+    .btn:hover {
+      background: rgba(0,255,136,0.08);
+      box-shadow: 0 0 20px var(--green-glow);
+      text-shadow: 0 0 10px var(--green);
+    }
+
+    .btn:active { transform: scale(0.98); }
+
+    .btn.loading {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* Console log */
+    .console {
+      margin-top: 24px;
+      padding: 12px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--muted);
+      font-size: 11px;
+      line-height: 1.8;
+      min-height: 60px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .console-line {
+      animation: fadeIn 0.3s ease;
+    }
+
+    .console-line.success { color: var(--green); }
+    .console-line.error { color: var(--red); }
+    .console-line.info { color: var(--amber); }
+    .console-line.muted { color: var(--muted); }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      animation: fadeUp 0.6s ease 0.4s both;
+    }
+
+    /* Animations */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <div class="container">
+    <div class="header">
+      <div class="system-tag">&#9632; 3-TIER ARCHITECTURE &#9632; LEVEL-2</div>
+      <h1>SYSTEM ACCESS<span class="blink">_</span></h1>
+      <div class="subtitle">AUTHENTICATION REQUIRED &bull; ENCRYPTED CHANNEL</div>
+    </div>
+
+    <div class="panel">
+      <div class="corner-tl"></div>
+
+      <div class="status-bar">
+        <div class="status-dot"></div>
+        <span>CHANNEL SECURE &bull; MONGO DB ONLINE &bull; NODE API READY</span>
+      </div>
+
+      <div class="field">
+        <label>User Identifier</label>
+        <div class="field-wrap">
+          <span class="prefix">&gt;</span>
+          <input type="text" id="user" placeholder="enter username" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Auth Token</label>
+        <div class="field-wrap">
+          <span class="prefix">&#9679;</span>
+          <input type="password" id="pass" placeholder="enter password" autocomplete="off" />
+        </div>
+      </div>
+
+      <button class="btn" id="submitBtn" onclick="handleLogin()">
+        &#9658;&nbsp; AUTHENTICATE &amp; COMMIT TO DB
+      </button>
+
+      <div class="console" id="console">
+        <div class="console-line muted">[INIT] Terminal ready. Awaiting credentials...</div>
+        <div class="console-line muted">[SYS ] Backend: Node.js / Express on :5000</div>
+        <div class="console-line muted">[SYS ] Database: MongoDB &bull; Collection: users</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      EC2 SINGLE-NODE &bull; DOCKER-COMPOSE &bull; 3-TIER ARCH &bull; &#169; 2025
+    </div>
+  </div>
+
+  <script>
+    function log(msg, type = 'muted') {
+      const c = document.getElementById('console');
+      const line = document.createElement('div');
+      line.className = `console-line ${type}`;
+      const ts = new Date().toTimeString().slice(0,8);
+      line.textContent = `[${ts}] ${msg}`;
+      c.appendChild(line);
+      c.scrollTop = c.scrollHeight;
+    }
+
+    async function handleLogin() {
+      const username = document.getElementById('user').value.trim();
+      const password = document.getElementById('pass').value.trim();
+      const btn = document.getElementById('submitBtn');
+
+      if (!username || !password) {
+        log('ERROR: Fields cannot be empty.', 'error');
+        return;
+      }
+
+      btn.classList.add('loading');
+      btn.textContent = '▸  TRANSMITTING...';
+      log(`Authenticating user: ${username}`, 'info');
+
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          log(`SUCCESS: ${result.message}`, 'success');
+          log('Record committed to MongoDB collection: users', 'success');
+          document.getElementById('user').value = '';
+          document.getElementById('pass').value = '';
+        } else {
+          log(`FAILED: ${result.message}`, 'error');
+        }
+      } catch (err) {
+        log(`NETWORK ERROR: ${err.message}`, 'error');
+        log('Check backend container status.', 'error');
+      } finally {
+        btn.classList.remove('loading');
+        btn.textContent = '▸  AUTHENTICATE & COMMIT TO DB';
+      }
+    }
+
+    // Enter key support
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    // Check backend health on load
+    window.addEventListener('load', async () => {
+      try {
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        log(`API: ${d.service}`, 'success');
+        log(`DB : ${d.database}`, d.database === 'Connected' ? 'success' : 'error');
+      } catch {
+        log('API health check failed — is backend running?', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

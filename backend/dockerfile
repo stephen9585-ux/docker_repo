@@ -1,0 +1,15 @@
+FROM node:20-alpine
+
+# Create app directory
+WORKDIR /opt/backend
+
+# Install dependencies first (layer caching)
+COPY package.json ./
+RUN npm install --omit=dev
+
+# Copy source
+COPY server.js ./
+
+EXPOSE 5000
+
+CMD ["node", "server.js"]
